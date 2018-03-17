@@ -1,34 +1,4 @@
-# import tkinter as tk
-#
-# class Application(tk.Frame):
-#     def __init__(self, master=None):
-#         super().__init__(master)
-#         self.pack()
-#         self.create_widgets()
-#
-#     def create_widgets(self):
-#         self.hi_there = tk.Button(self)
-#         self.hi_there["text"] = "Hello World\n(click me)"
-#         self.hi_there["command"] = self.say_hi
-#         self.hi_there.grid(row=1,column=1)
-#
-#         e1 = tk.Entry(self)
-#         e2 = tk.Entry(self)
-#
-#         e1.grid(row=1,column=3)
-#         e2.grid(row=1,column=4)
-#
-#         self.quit = tk.Button(self, text="QUIT", fg="red",
-#                               command=root.destroy)
-#         self.quit.grid(row=1,column=2)
-#
-#     def say_hi(self):
-#         print("hi there, everyone!")
-#
-# root = tk.Tk()
-# app = Application(master=root)
-# app.mainloop()
-from functools import partial
+
 import requests
 import json
 import tkinter as tk                # python 3
@@ -36,10 +6,10 @@ from tkinter import font  as tkfont # python 3
 from tkinter import *
 from tkinter import messagebox
 
-import gnupg
-#import Tkinter as tk     # python 2
-#import tkFont as tkfont  # python 2
+from run import *
+from ipfs_backend import ipfs_backend
 
+import gnupg
 gpg = gnupg.GPG('./gpg')
 
 class SampleApp(tk.Tk):
@@ -145,8 +115,6 @@ class StartPage(tk.Frame):
         print(response.text)
 
 
-
-
 class Register_User(tk.Frame):
 
     def __init__(self, parent, controller):
@@ -155,7 +123,7 @@ class Register_User(tk.Frame):
         # label = tk.Label(self, text="Create Account", font=controller.title_font)
         # label.(side="top", fill="x", pady=10)
         username_label = tk.Label(self, text="Username")
-        username_label.grid(row=1,column=1)
+        username_label.grid(row=1, column=1)
 
         username_entry = tk.Entry(self)
         username_entry.grid(row=1, column=2)
@@ -182,27 +150,26 @@ class Register_User(tk.Frame):
         button.grid(row=6, column=1)
 
     def generate_key_pairs(self, private_key_entry, public_key_entry):
-        print("Will start creating keys")
-        input_data = gpg.gen_key_input(key_type="RSA", key_length=1024)
-        print("Will do this")
-        key = gpg.gen_key(input_data)
+        # print("Will start creating keys")
+        private_key_object = generate_privkey()
+        public_key_object = get_pubkeyfrompriv(private_key_object)
 
-        print("Exporting Keys")
-        public_key = gpg.export_keys(key)
-        private_key = gpg.export_keys(key, True)
-
-        private_key_entry.insert(END, private_key)
-        public_key_entry.insert(END, public_key)
+        private_key_raw = get_raw_key(private_key_object).decode("utf-8")
+        public_key_raw = get_raw_key(public_key_object).decode("utf-8")
 
         file = open('publickey.key', 'w')
-        file.write(public_key)
+        file.write(public_key_raw)
         file.close()
 
         file = open('privatekey.key', 'w')
-        file.write(private_key)
+        file.write(private_key_raw)
         file.close()
 
-        print("Created key pairs")
+        private_key_entry.insert(END, private_key_raw)
+        public_key_entry.insert(END, public_key_raw)
+        print("Keys saved")
+
+        return private_key_raw, public_key_raw
 
     def register_user(self, username, public_key):
         print("Registering User ", username)
@@ -229,6 +196,7 @@ class Register_User(tk.Frame):
         print("Here is the response ", response.text)
 
 class SendEmail(tk.Frame):
+
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         self.controller = controller
@@ -239,8 +207,20 @@ class SendEmail(tk.Frame):
                            command=lambda: controller.show_frame("StartPage"))
         button.grid(row=10, column=1)
 
-        
+        send_group = tk.LabelFrame(self,text="",padx=10,pady=10)
+        send_group.grid(column=1,row=2)
 
+        to_label = tk.Label(send_group, text="To: ")
+        to_label.grid(column=1, row=1)
+
+        to_entry = tk.Entry(send_group)
+        to_entry.grid(column=2, row=1)
+
+        send_email_button = tk.Button(send_group, text="Send")
+        send_email_button.grid(column=3, row=1)
+
+        email_body_text = tk.Text(self)
+        email_body_text.grid(row=3, column=1)
 
 
 
@@ -256,7 +236,7 @@ class Dashboard(tk.Frame):
         button_group.grid(column=1, row=2, padx=(10, 10), sticky=W)
 
 
-        send_email_button = tk.Button(button_group, text="Send Email")
+        send_email_button = tk.Button(button_group, text="Send Email", command=lambda :controller.show_frame("SendEmail"))
         send_email_button.grid(row=2, column=1)
 
         fetch_emails_button = tk.Button(button_group, text="Fetch Email")
@@ -293,21 +273,29 @@ class Dashboard(tk.Frame):
 
 
     @staticmethod
-    def encrypt_message(message,public_key):
+    def encrypt_message(message, public_key):
         return "encrypted"
 
 
     @staticmethod
-    def get_emails_from_end_point(public_key):
+    def get_emails_from_end_point():
 
-        url = "https://dmail-hack-mit.herokuapp.com/checkemail/public_key"
+        file = open('publickey.key', 'r')
+        public_key = file.read()
+        file.close()
 
-        payload = "{\n\t\"username\":\"HughTaylor\",\n\t\"pub_key\":\"w8eur\"\n}"
+        file = open('privatekey.key', 'r')
+        private_key = file.read()
+        file.close()
+
+        url = "https://dmail-hack-mit.herokuapp.com/checkemail/" + public_key
+
+
         headers = {
             'Content-Type': "application/json",
         }
 
-        response = requests.request("GET", url, data=payload, headers=headers)
+        response = requests.request("GET", url, headers=headers)
 
         print(response.text)
 
@@ -317,13 +305,28 @@ class Dashboard(tk.Frame):
         else:
             email_hash_array = []
 
+
+        # TODO FINISH GETTING EMAIL HASHES AND DECRYPTING THEM
+
+        for hash in email_hash_array:
+            email = ipfs_backend.get_email_from_ipfs(hash)
+
+            email = json.loads(email)
+
+            capsule = email["capsule"]
+            cipher_text = email["ciphertext"]
+
+            decrypt_message(capsule,private_key,cipher_text, "fuck")
+
+
         print("We have these hashes ", email_hash_array)
 
         email1 = Email_Object("sender-kaan", "receiver-Harsh", "Hello Kaan How are things")
 
         email2 = Email_Object("sender-Harsh", "receiver-Kaan", "Kaan everything is great, I love Georgia Tech!")
 
-        email3 = Email_Object("sender-Kaan", "receiver-Harsh", "It is great to hear Harsh! I hope you become a professor at Tech")
+        email3 = Email_Object("sender-Kaan", "receiver-Harsh", "It is great to hear that Harsh!"
+                                                               " I hope you become a professor at Tech")
 
         return [email1, email2, email3]
 
@@ -332,7 +335,7 @@ class Email_Object(object):
     def __init__(self,sender,receiver,content):
 
         self.sender = sender
-        self.receiver =receiver
+        self.receiver = receiver
         self.content = content
 
     def generate_email_title(self):
