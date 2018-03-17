@@ -104,12 +104,24 @@ class StartPage(tk.Frame):
         button1.grid(row=4,column=1, pady=(20,20))
 
     def get_user(self, private_key, controller):
+
+        # Fucking gnupg library doesn't work
+
         # command = lambda: controller.show_frame("Dashboard")
-        print("I received the private key ", private_key.encode())
+        # print("I received the private key ", private_key.encode())
 
-        imported_key = gpg.import_keys(private_key)
+        # file = open('privatekey.key', 'r')
+        # private_key = file.read()
+        # file.close()
+        #
+        # print("I found the private key ", private_key.encode())
+        # imported_key = gpg.import_keys(private_key)
+        #
+        # public_key = gpg.export_keys(imported_key)
 
-        public_key = gpg.export_keys(imported_key)
+        file = open('publickey.key', 'r')
+        public_key = file.read()
+        file.close()
 
         url = "https://dmail-hack-mit.herokuapp.com/finduser"
 
@@ -180,6 +192,14 @@ class Register_User(tk.Frame):
 
         private_key_entry.insert(END, private_key)
         public_key_entry.insert(END, public_key)
+
+        file = open('publickey.key', 'w')
+        file.write(public_key)
+        file.close()
+
+        file = open('privatekey.key', 'w')
+        file.write(private_key)
+        file.close()
 
         print("Created key pairs")
 
