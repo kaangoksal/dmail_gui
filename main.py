@@ -28,7 +28,7 @@
 # root = tk.Tk()
 # app = Application(master=root)
 # app.mainloop()
-
+from functools import partial
 import requests
 import json
 import tkinter as tk                # python 3
@@ -86,11 +86,12 @@ class StartPage(tk.Frame):
 
 
         private_key_label = tk.Label(group, text="Private Key").grid(row=2,column=1)
-        private_key_entry = tk.Entry(group).grid(row=2,column=2)
+        private_key_entry = tk.Entry(group)
+        private_key_entry.grid(row=2, column=2)
 
-        button2 = tk.Button(group, text="Login",
-                            command=lambda: controller.show_frame("Dashboard"))
-        button2.grid(row=3, column=2, pady=(10,10), command= lambda: StartPage.get_user(private_key_entry.text))
+
+        button2 = tk.Button(group, text="Login", command=lambda: self.get_user(private_key_entry.get(), controller))
+        button2.grid(row=3, column=2, pady=(10,10))
 
         button1 = tk.Button(self, text="Create Account",
                             command=lambda: controller.show_frame("Register_User"))
@@ -98,9 +99,9 @@ class StartPage(tk.Frame):
 
         button1.grid(row=4,column=1, pady=(20,20))
 
-    @staticmethod
-    def get_user(public_key):
-
+    def get_user(self, public_key, controller):
+        # command = lambda: controller.show_frame("Dashboard")
+        print("I got called")
 
         url = "https://dmail-hack-mit.herokuapp.com/finduser"
 
@@ -110,8 +111,13 @@ class StartPage(tk.Frame):
         headers = {
             'Content-Type': "application/json",
         }
-
+        print("Here is the payload ", payload)
         response = requests.request("POST", url, data=payload, headers=headers)
+
+        parsed_json = response.json()
+
+        if "username" in parsed_json:
+            controller.show_frame("Dashboard")
 
         print(response.text)
 
