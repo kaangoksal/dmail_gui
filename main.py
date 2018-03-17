@@ -58,7 +58,7 @@ class SampleApp(tk.Tk):
         container.grid_columnconfigure(0, weight=1)
 
         self.frames = {}
-        for F in (StartPage, Register_User, Dashboard):
+        for F in (StartPage, Register_User, Dashboard, SendEmail):
             page_name = F.__name__
             frame = F(parent=container, controller=self)
             self.frames[page_name] = frame
@@ -88,7 +88,8 @@ class StartPage(tk.Frame):
         group = tk.LabelFrame(self, text="Login", padx=10, pady=10)
         group.grid(column=1, row=2, padx=(10,10))
 
-
+        public_keys = gpg.list_keys()
+        print(public_keys)
 
         private_key_label = tk.Label(group, text="Private Key").grid(row=2,column=1)
         private_key_entry = tk.Text(group)
@@ -166,7 +167,7 @@ class Register_User(tk.Frame):
 
         private_key_label = tk.Label(self, text="Private Key").grid(row=3, column=1)
 
-        #TODO if the user inputs a private key just use that instead of generating one
+        # TODO if the user inputs a private key just use that instead of generating one
 
         private_key_entry = tk.Text(self)
         private_key_entry.grid(row=3, column=2)
@@ -227,6 +228,20 @@ class Register_User(tk.Frame):
 
         print("Here is the response ", response.text)
 
+class SendEmail(tk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        self.controller = controller
+        label = tk.Label(self, text="Send Email", font=controller.title_font)
+        label.grid(row=1, column=1)
+
+        button = tk.Button(self, text="Go to the start page",
+                           command=lambda: controller.show_frame("StartPage"))
+        button.grid(row=10, column=1)
+
+        
+
+
 
 
 class Dashboard(tk.Frame):
@@ -241,16 +256,16 @@ class Dashboard(tk.Frame):
         button_group.grid(column=1, row=2, padx=(10, 10), sticky=W)
 
 
-        send_email_button = tk.Button(button_group, text="Send Email").grid(row=2, column=1)
-        fetch_emails_button = tk.Button(button_group, text="Fetch Email").grid(row=2, column=2)
+        send_email_button = tk.Button(button_group, text="Send Email")
+        send_email_button.grid(row=2, column=1)
+
+        fetch_emails_button = tk.Button(button_group, text="Fetch Email")
+        fetch_emails_button.grid(row=2, column=2)
 
         group = tk.LabelFrame(self, text="Emails", padx=10, pady=10)
         group.grid(column=1, row=3, padx=(10, 10))
 
         Dashboard.populate_emails(group)
-
-
-
 
 
         button = tk.Button(self, text="Go to the start page",
@@ -259,7 +274,11 @@ class Dashboard(tk.Frame):
 
     @staticmethod
     def populate_emails(root):
-        public_key = "key--eins"
+        file = open('publickey.key', 'r')
+        public_key = file.read()
+        file.close()
+
+
         emails = Dashboard.get_emails_from_end_point(public_key)
 
         row = 0
@@ -272,15 +291,41 @@ class Dashboard(tk.Frame):
             row +=1
 
 
+
+    @staticmethod
+    def encrypt_message(message,public_key):
+        return "encrypted"
+
+
     @staticmethod
     def get_emails_from_end_point(public_key):
+
+        url = "https://dmail-hack-mit.herokuapp.com/checkemail/public_key"
+
+        payload = "{\n\t\"username\":\"HughTaylor\",\n\t\"pub_key\":\"w8eur\"\n}"
+        headers = {
+            'Content-Type': "application/json",
+        }
+
+        response = requests.request("GET", url, data=payload, headers=headers)
+
+        print(response.text)
+
+        parsed_json = response.json()
+        if "emails" in parsed_json:
+            email_hash_array = parsed_json["emails"]
+        else:
+            email_hash_array = []
+
+        print("We have these hashes ", email_hash_array)
+
         email1 = Email_Object("sender-kaan", "receiver-Harsh", "Hello Kaan How are things")
 
         email2 = Email_Object("sender-Harsh", "receiver-Kaan", "Kaan everything is great, I love Georgia Tech!")
 
         email3 = Email_Object("sender-Kaan", "receiver-Harsh", "It is great to hear Harsh! I hope you become a professor at Tech")
 
-        return [email1,email2,email3]
+        return [email1, email2, email3]
 
 class Email_Object(object):
 
